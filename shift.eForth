@@ -1,9 +1,9 @@
 ( SPI Matrix Shifting on Arduino )
-( by dp12 on 08/11/14			 )
-( SHREG1: blue					 )
-( SHREG2: red					 )
-( SHREG3: green					 )
-( SHREG4: GND					 )
+( by dp12 on 08/11/14            )
+( SHREG1: blue                   )
+( SHREG2: red                    )
+( SHREG3: green                  )
+( SHREG4: GND                    )
 4c constant spcr
 4d constant spsr
 4e constant spdr
@@ -11,67 +11,68 @@
 25 constant portb
 
 : lshift ( num row -- num << row )
-	for aft 2* then next ;
+    for aft 2* then next ;
 
-: train_spi	   ( -- )
-	( set direction and spi registers )
-	2c ddrb c!			 \ set mosi|sck|ss, clr miso
-	50 spcr c!			 \ set spi master, clr prescalar
-	 1 spsr c!			 \ set spi 2x speed
-	d3 portb c@ and c! ; \ deassert mosi|sck|ss
+: train_spi    ( -- )
+    ( set direction and spi registers )
+    2c ddrb c!         \ set mosi|sck|ss outputs, clr miso input
+    d3 portb c@ and c! \ set mosi|sck|ss to low
+    50 spcr c!         \ spi master, enable spi, prescalar=fosc/2
+	spdr c@ drop       \ read spdr register to clear it
+	1 spsr c@ or c! ;  \ set spi 2x speed
 
-: >spi	  ( b -- )
-	( send byte over spi )
-	spdr c!						 \ tx byte
-	begin spsr c@ 80 and until ; \ wait for spif
+: >spi    ( b -- )
+    ( send byte over spi )
+    spdr c!                      \ tx byte
+    begin spsr c@ 80 and until ; \ wait for spif
 
-: slave_	( -- )
-	( lower slave select )
-	fb portb c@ and c! ;
+: slave_    ( -- )
+    ( lower slave select )
+    fb portb c@ and c! ;
 
-: slave^	( -- )
-	( raise slave select )
-	4 portb c@ or c! ;
+: slave^    ( -- )
+    ( raise slave select )
+    4 portb c@ or c! ;
 
-: dark	  ( -- )
-	( turn off lights )
-	slave_			   \ lower ssel
-	0 >spi			   \ turn off rows
-	2 for ff >spi next \ turn off rgb
-	slave^ slave_ ;	   \ raise & lower ssel
+: dark    ( -- )
+    ( turn off lights )
+    slave_             \ lower ssel
+    0 >spi             \ turn off rows
+    2 for ff >spi next \ turn off rgb
+    slave^ slave_ ;    \ raise & lower ssel
 
 create cross
-	( make cross with rgb )
-	aa11 , bb22 , cc33 , dd44 ,
-	ee55 , ff66 , aa77 , bb88 ,
-	cc99 , dd00 , ee11 , ff22 ,
+    ( make cross with rgb )
+    aa11 , bb22 , cc33 , dd44 ,
+    ee55 , ff66 , aa77 , bb88 ,
+    cc99 , dd00 , ee11 , ff22 ,
 (
    Vals aaaa bbbb cccc dddd <- Green values
-		eeee ffff 0000 1111 <- Red values
-		2222 3333 4444 5555 <- Blue values
+        eeee ffff 0000 1111 <- Red values
+        2222 3333 4444 5555 <- Blue values
    active lo: 0 means ON
 )
 
 : odd ( odd# -- 1 )
-	1 and 1 = ; \ check if first bit is 1
+    1 and 1 = ; \ check if first bit is 1
 
 : >row ( addr row -- )
-	( send row for a RGB color )
-	dup odd if   + 1- c@ \ row is in lower byte
-			else + 1+ c@ \ row is in upper byte
-			then >spi ;  \ send row via spi
+    ( send row for a RGB color )
+    dup odd if   + 1- c@ \ row is in lower byte
+            else + 1+ c@ \ row is in upper byte
+            then >spi ;  \ send row via spi
 
 : scan ( addr -- addr )
-	( iterate thru 8 rows of rgb )
-	7 for
-		slave_
-		1 r@ lshift  >spi \ Light up row n
-		dup r@       >row \ Send green
-		dup 8 + r@   >row \ Send red
-		dup 10 + r@  >row \ Send blue
-		slave^ slave_
-	next ;
+    ( iterate thru 8 rows of rgb )
+    7 for
+        slave_
+        1 r@ lshift  >spi \ Light up row n
+        dup r@       >row \ Send green
+        dup 8 + r@   >row \ Send red
+        dup 10 + r@  >row \ Send blue
+        slave^ slave_
+    next ;
 
 : cycle ( addr n -- )
-	( scan thru rows n+1 times )
-	for scan next dark drop ;
+    ( scan thru rows n+1 times )
+    for scan next dark drop ;
