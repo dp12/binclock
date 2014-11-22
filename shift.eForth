@@ -18,8 +18,8 @@
     2c ddrb c!         \ set mosi|sck|ss outputs, clr miso input
     d3 portb c@ and c! \ set mosi|sck|ss to low
     50 spcr c!         \ spi master, enable spi, prescalar=fosc/2
-	spdr c@ drop       \ read spdr register to clear it
-	1 spsr c@ or c! ;  \ set spi 2x speed
+    spdr c@ drop       \ read spdr register to clear it
+    1 spsr c@ or c! ;  \ set spi 2x speed
 
 : >spi    ( b -- )
     ( send byte over spi )
