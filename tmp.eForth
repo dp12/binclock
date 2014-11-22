@@ -1,42 +1,42 @@
 : speed    ( kHz -- )
     ( Given kHz speed in hex, set I2C bus speed <0x64 typical> )
     fa0 swap / 8 - b8 c! DECIMAL ;
-    
+
 : twint?    ( -- )
     ( Wait for TWINT flag )
-	begin bc c@ 80 and until ;
-	
-: start   ( -- )  
+    begin bc c@ 80 and until ;
+
+: start   ( -- )
     ( Send Stop condition to TC74 )
-    a4 bc c@ or 	        \ Set bits 7, 5, 2
-    bc c! 			        \ Send start to ctrl register 
+    a4 bc c@ or             \ Set bits 7, 5, 2
+    bc c!                   \ Send start to ctrl register
     twint? ;
 
-: nak    ( -- )            
+: nak    ( -- )
     ( Transmit nak to signal end of talk )
     80 bc c@ or bc c! ;
-    
+
 : stop     ( -- )
     ( Send Stop condition to TC74 )
-    94 bc c@ or		        \ Set bits 7, 4, 2
+    94 bc c@ or                 \ Set bits 7, 4, 2
     bc c! ;
 
 : >twi    ( byte -- )
     ( Transmit byte across TWI interface)
-    bb c! 		            \ Store byte into data register
-    84 bc c!	      \ Tx byte by setting TWINT and TWEN in TWCR
-	twint? ;
-	
+    bb c!                   \ Store byte into data register
+    84 bc c!          \ Tx byte by setting TWINT and TWEN in TWCR
+    twint? ;
+
 : twi>     ( -- byte )
     ( Receive byte from TWI interface and push onto stack)
-    twint?  bb c@ ; 	    \ Load byte from data register
-    
+    twint?  bb c@ ;         \ Load byte from data register
+
 : read    ( -- celsius )
     ( Read TC74 temperature register )
     start  90 >twi  00 >twi \ Send write cmd 0x00
     start  91 >twi  nak     \ Send read cmd
     twi>   stop ;           \ Read byte, hangup
-    
+
 : c>f  ( celsius -- fahrenheit )
     18 10 */ 32 + ;
 
