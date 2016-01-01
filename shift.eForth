@@ -13,18 +13,20 @@
 : lshift    ( num row -- num << row )
     for aft 2* then next ;
 
+: ms for aft $40 for next then next ;
+
 : train_spi    ( -- )
     ( set direction and spi registers )
     2c ddrb c@ or ddrb c!    \ set mosi|sck|ss outputs, clr miso input
     d3 portb c@ and portb c! \ set mosi|sck|ss to low
-    50 spcr c!               \ spi master, enable spi, prescalar=fosc/2
-    1 spsr c@ or spsr c!     \ set spi 2x speed
-    spdr c@ drop ;           \ read spdr to clear it
+    50 spcr c! \ enable SPIE and MSTR; prescalar=fosc/2
+    1 spsr c@ or spsr c! \ set spi 2x speed
+    spdr c@ drop ; \ read spdr register to clear it
 
 : >spi    ( b -- )
     ( send byte over spi )
-    spdr c!                      \ tx byte
-    begin spsr c@ 80 and until ; \ wait for spif
+    spdr c! \ tx byte
+	  begin spsr c@ 80 and until ; \ wait for spif
 
 : slave_    ( -- )
     ( lower slave select )
@@ -41,11 +43,11 @@
     2 for ff >spi next \ turn off rgb
     slave^ ;           \ deassert ssel
 
-create cross
-    ( make cross with rgb )
-    aa11 , bb22 , cc33 , dd44 ,
-    ee55 , ff66 , aa77 , bb88 ,
-    cc99 , dd00 , ee11 , ff22 ,
+create smile
+    ( make rgb smile)
+    fff9 , f9ff , ffff , ffff ,
+    ff9f , 9fff , ffff , ffff ,
+    ffff , ffff , 3c00 , 00ff ,
 
 : odd    ( odd# -- 1 )
     1 and 1 = ; \ check if first bit is 1
@@ -70,3 +72,4 @@ create cross
 : cycle    ( addr n -- )
     ( scan thru rows n+1 times )
     for scan next dark drop ;
+
