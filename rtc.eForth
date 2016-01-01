@@ -1,0 +1,59 @@
+b9 constant twsr
+bc constant twcr
+bb constant twdr
+b8 constant twbr
+
+: twi    ( kHz -- )
+    ( Initialize twi interface )
+    fc twsr c@ and twsr c! \ Clear prescalar bits
+    48 twbr c!             \ Set bit rate for 100kHz
+    45 twcr c! ;           \ Set TWEN, TWIE, TWEA
+
+: twint?    ( -- )
+    ( Wait for TWINT flag )
+    begin twcr c@ 80 and until ;
+
+: start   ( -- )
+    ( Send Start condition to TC74 )
+    a4 twcr c!        \ Set bits 7, 5, 2
+    twint? ;
+
+: nak    ( -- )
+    ( Transmit nak to signal end of talk )
+    84 twcr c! ;
+
+: ack    ( -- )
+    c4 twcr c! ;
+
+: stop     ( -- )
+    ( Send Stop condition to TC74 )
+    94 twcr c! ;         \ Set bits 7, 4, 2
+
+: >twi    ( byte -- )
+    ( Transmit byte across TWI interface)
+    twdr c!                 \ Store byte into data register
+    c4 twcr c!              \ Tx byte TWINT and TWEN in TWCR
+    twint? ;
+
+: twi>     ( -- byte )
+    ( Receive byte from TWI interface and push onto stack)
+    twint? twdr c@ ;       \ Load byte from data register
+
+: 2bcd    ( dec -- bcd )
+    decimal 10 /MOD 16 * + hex ;
+
+: 2dec    ( bcd -- dec )
+    10 /MOD a * + ;
+
+: read    ( -- secs mins hours)
+    ( Read time )
+    start  d0 >twi 00 >twi      \ Reset register pointer
+    start  d1 >twi
+    ack twi> 2dec ack twi> 2dec \ Read sec & min
+    nak twi> 2dec stop ;        \ Read hours
+
+: set    ( hr min sec --  )
+    ( Set HMS time )
+    start d0 >twi 00 >twi
+    2bcd >twi 2bcd >twi 2bcd >twi
+    stop ;
