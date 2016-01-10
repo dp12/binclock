@@ -15,15 +15,14 @@ b8 constant twbr
 
 : start   ( -- )
     ( Send Start condition to TC74 )
-    a4 twcr c!        \ Set bits 7, 5, 2
+    a4 twcr c!
     twint? ;
-
-: nak  84 twcr c! ;
 
 : ack  c4 twcr c! ;
 
-: stop     ( -- )
-    94 twcr c! ;      \ Set bits 7, 4, 2
+: nak  84 twcr c! ;
+
+: stop  94 twcr c! ;
 
 : >twi    ( byte -- )
     ( Transmit byte across TWI interface)
@@ -41,18 +40,18 @@ b8 constant twbr
 : 2dec    ( bcd -- dec )
     10 /MOD a * + ;
 
-: time?   ( -- secs mins hrs)
-    start  d0 >twi 00 >twi      \ Reset register pointer
-    start  d1 >twi              \ Start read
-    ack twi> 2dec ack twi> 2dec \ Read sec & min
-    nak twi> 3f and 2dec stop ; \ Read hours
-
-: sec?    ( -- secs )
-    start d0 >twi 00 >twi    \ Reset register pointer
-    start d1 >twi nak twi> ; \ Read seconds
-
 : >time    ( hr min sec --  )
     ( Set HMS time )
     start d0 >twi 00 >twi
     2bcd >twi 2bcd >twi 2bcd >twi
     stop ;
+
+: time?   ( addr -- time )
+    start d0 >twi >twi \ Set reg ptr address
+    start d1 >twi nak  \ Send read command
+    twi> 2dec ;        \ Read seconds
+
+: sec?  0 time? ;
+: min?  1 time? ;
+: hr?   2 time? ;
+
