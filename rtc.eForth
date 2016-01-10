@@ -3,7 +3,7 @@ bc constant twcr
 bb constant twdr
 b8 constant twbr
 
-: twi    ( kHz -- )
+: twi    ( -- )
     ( Initialize twi interface )
     fc twsr c@ and twsr c! \ Clear prescalar bits
     48 twbr c!             \ Set bit rate for 100kHz
@@ -18,16 +18,12 @@ b8 constant twbr
     a4 twcr c!        \ Set bits 7, 5, 2
     twint? ;
 
-: nak    ( -- )
-    ( Transmit nak to signal end of talk )
-    84 twcr c! ;
+: nak  84 twcr c! ;
 
-: ack    ( -- )
-    c4 twcr c! ;
+: ack  c4 twcr c! ;
 
 : stop     ( -- )
-    ( Send Stop condition to TC74 )
-    94 twcr c! ;         \ Set bits 7, 4, 2
+    94 twcr c! ;      \ Set bits 7, 4, 2
 
 : >twi    ( byte -- )
     ( Transmit byte across TWI interface)
@@ -45,14 +41,17 @@ b8 constant twbr
 : 2dec    ( bcd -- dec )
     10 /MOD a * + ;
 
-: read    ( -- secs mins hours)
-    ( Read time )
+: time?   ( -- secs mins hrs)
     start  d0 >twi 00 >twi      \ Reset register pointer
-    start  d1 >twi
+    start  d1 >twi              \ Start read
     ack twi> 2dec ack twi> 2dec \ Read sec & min
-    nak twi> 2dec stop ;        \ Read hours
+    nak twi> 3f and 2dec stop ; \ Read hours
 
-: set    ( hr min sec --  )
+: sec?    ( -- secs )
+    start d0 >twi 00 >twi    \ Reset register pointer
+    start d1 >twi nak twi> ; \ Read seconds
+
+: >time    ( hr min sec --  )
     ( Set HMS time )
     start d0 >twi 00 >twi
     2bcd >twi 2bcd >twi 2bcd >twi

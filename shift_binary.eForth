@@ -1,0 +1,111 @@
+( SPI Matrix Shifting Test Functions )
+4c constant spcr
+4d constant spsr
+4e constant spdr
+$24 constant ddrb
+$25 constant portb
+0 constant green
+8 constant red
+$10 constant blue
+
+: color+    ( mask addr -- mask addr+offset )
+    ( Add color offset )
+    over dup 7f =
+    swap bf = or if red + else
+    over dup ef =
+    swap f7 = or if blue + else
+    over dup fd =
+    swap fe = or if green + else
+    then then then ;
+
+: lshift    ( num shift -- num << shift )
+    for aft 2* then next ;
+
+: rshift    ( num shift -- num >> shift )
+    for aft 2/ then next ;
+
+: ms for aft $40 for next then next ;
+
+: spi    ( -- )
+    ( set direction and spi registers )
+    2c ddrb c@ or ddrb c!    \ set mosi|sck|ss outputs, clr miso input
+    d3 portb c@ and portb c! \ set mosi|sck|ss to low
+    50 spcr c! \ enable SPIE and MSTR; prescalar=fosc/2
+    1 spsr c@ or spsr c! \ set spi 2x speed
+    spdr c@ drop ; \ read spdr register to clear it
+
+: >spi    ( b -- )
+    ( send byte over spi )
+    spdr c! \ tx byte
+    begin spsr c@ $80 and until ; \ wait for spif
+
+: slave_    ( -- )
+    ( lower slave select )
+    fb portb c@ and portb c! ;
+
+: slave^    ( -- )
+    ( raise slave select )
+    4 portb c@ or portb c! ;
+
+: dark    ( -- )
+    ( turn off lights )
+    slave_             \ lower ssel
+    0 >spi             \ turn off rows
+    2 for ff >spi next \ turn off rgb
+    slave^ ;    \ raise & lower ssel
+
+: odd    ( odd# -- 1 )
+    1 and 1 = ; \ check if first bit is 1
+
+: &row? ( addr row# -- &row )
+    dup odd if   + 1- \ row is in lower byte
+            else + 1+ \ row is in upper byte
+            then ;
+
+: >row    ( addr row -- )
+    ( send row for a RGB color )
+    &row? c@ >spi ; 
+
+: scan    ( addr -- addr )
+    ( iterate thru 8 rows of rgb )
+    7 for
+        slave_
+        1 r@ lshift  >spi \ light up row n
+        dup r@       >row \ send green
+        dup red + r@   >row \ send red
+        dup blue + r@ >row \ send blue
+        slave^
+    next ;
+
+: cycle    ( addr n -- )
+    ( scan thru rows n+1 times )
+    for scan next dark drop ;
+
+: loop    ( addr -- )
+    begin scan ?key until ;
+
+create matrix
+    ffff , ffff , ffff , ffff ,
+    ffff , ffff , ffff , ffff ,
+    ffff , ffff , ffff , ffff ,
+
+: cmask    ( mask cols -- )
+    ( Write binary number to a column )
+    7 for 
+        dup 1 and 1 = \ set bit in column if bit is set
+        if over matrix color+ r@ &row?
+            dup c@ rot and swap c!
+        else over matrix color+ r@ &row?
+            dup c@ rot not ff and or swap c!
+        then 1 rshift \ check next bit
+    next 2drop ;
+
+: hr!    ( hrs -- )
+    a /mod 7f swap cmask bf swap cmask ;
+
+: min!    ( mins -- )
+    a /mod ef swap cmask f7 swap cmask ;
+
+: sec!    ( secs -- )
+    a /mod fd swap cmask fe swap cmask ;
+
