@@ -70,9 +70,9 @@ $10 constant blue
     ( iterate thru 8 rows of rgb )
     7 for
         slave_
-        1 r@ lshift  >spi \ light up row n
-        dup r@       >row \ send green
-        dup red + r@   >row \ send red
+        1 r@ lshift   >spi \ light up row n
+        dup r@        >row \ send green
+        dup red + r@  >row \ send red
         dup blue + r@ >row \ send blue
         slave^
     next ;
@@ -80,9 +80,6 @@ $10 constant blue
 : cycle    ( addr n -- )
     ( scan thru rows n+1 times )
     for scan next dark drop ;
-
-: loop    ( addr -- )
-    begin scan ?key until ;
 
 create matrix
     ffff , ffff , ffff , ffff ,
@@ -109,3 +106,8 @@ create matrix
 : sec!    ( secs -- )
     a /mod fd swap cmask fe swap cmask ;
 
+: clk ( n -- )
+    for matrix 5 cycle sec? dup sec!
+        0= if min? dup min!
+        0= if hr? hr!
+        then then next ;
